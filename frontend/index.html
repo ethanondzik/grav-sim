@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Body Gravity Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #000;
+            color: #fff;
+        }
+        canvas {
+            border: 1px solid #fff;
+            background-color: #000;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        button {
+            margin-right: 10px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>N-Body Gravity Simulator</h1>
+    <div class="controls">
+        <button id="threeBodyBtn">3-Body Problem</button>
+        <button id="plutoCharonBtn">Pluto-Charon</button>
+        <button id="playBtn">Play</button>
+        <button id="pauseBtn">Pause</button>
+        <input type="range" id="speedSlider" min="1" max="100" value="10">
+        <label for="speedSlider">Speed</label>
+    </div>
+    <canvas id="simCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const speedSlider = document.getElementById('speedSlider');
+        const threeBodyBtn = document.getElementById('threeBodyBtn');
+        const plutoCharonBtn = document.getElementById('plutoCharonBtn');
+
+        let history = [];
+        let currentStep = 0;
+        let isPlaying = false;
+        let speed = 10;
+
+        function fetchSimulation(scenario) {
+            fetch(`http://localhost:8000/simulate/${scenario}`)
+                .then(response => response.json())
+                .then(data => {
+                    history = data.history;
+                    currentStep = 0;
+                    draw();
+                })
+                .catch(error => console.error('Error fetching simulation:', error));
+        }
+
+        function getBounds() {
+            if (history.length === 0) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            history.forEach(state => {
+                state.bodies.forEach(body => {
+                    const [x, y] = body.position;
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+                });
+            });
+            return { minX, maxX, minY, maxY };
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (history.length === 0) return;
+
+            const state = history[currentStep];
+            const bounds = getBounds();
+            const scaleX = canvas.width / (bounds.maxX - bounds.minX || 1);
+            const scaleY = canvas.height / (bounds.maxY - bounds.minY || 1);
+            const scale = Math.min(scaleX, scaleY) * 0.8; // Leave some margin
+
+            state.bodies.forEach(body => {
+                const [x, y] = body.position;
+                const cx = (x - bounds.minX) * scale + 50; // Offset for margin
+                const cy = (y - bounds.minY) * scale + 50;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+                ctx.fillText(body.name, cx + 10, cy);
+            });
+        }
+
+        function animate() {
+            if (isPlaying && currentStep < history.length - 1) {
+                currentStep++;
+                draw();
+            }
+        }
+
+        setInterval(animate, 1000 / speed);
+
+        playBtn.addEventListener('click', () => {
+            isPlaying = true;
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            isPlaying = false;
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            speed = e.target.value;
+        });
+
+        threeBodyBtn.addEventListener('click', () => {
+            fetchSimulation('three_body');
+        });
+
+        plutoCharonBtn.addEventListener('click', () => {
+            fetchSimulation('pluto_charon');
+        });
+
+        // Load default or from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialScenario = urlParams.get('scenario') || 'three_body';
+        fetchSimulation(initialScenario);
+    </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Body Gravity Simulator Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .dashboard {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .scenario {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .scenario h2 {
+            margin-top: 0;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>N-Body Gravity Simulator</h1>
+        <p>Welcome to the N-Body Gravity Simulator. This application demonstrates real physics-based gravitational simulations.</p>
+
+        <div class="scenario">
+            <h2>3-Body Problem</h2>
+            <p>Simulate the chaotic three-body problem with equal masses in a figure-eight configuration.</p>
+            <a href="/frontend/index.html?scenario=three_body">Launch 3-Body Simulation</a>
+        </div>
+
+        <div class="scenario">
+            <h2>Pluto-Charon System</h2>
+            <p>Explore the binary orbit of Pluto and its moon Charon using real astronomical data.</p>
+            <a href="/frontend/index.html?scenario=pluto_charon">Launch Pluto-Charon Simulation</a>
+        </div>
+
+        <p><em>Built with FastAPI and real physics calculations.</em></p>
+    </div>
+</body>
+</html>
