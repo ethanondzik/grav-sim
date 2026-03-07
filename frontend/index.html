@@ -5,133 +5,670 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>N-Body Gravity Simulator</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #000;
-            color: #fff;
+            background: #000;
+            color: #ccc;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
         }
         canvas {
-            border: 1px solid #fff;
-            background-color: #000;
+            display: block;
+            position: absolute;
+            top: 0; left: 0;
         }
-        .controls {
-            margin-bottom: 20px;
+        #labelsContainer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
         }
-        button {
-            margin-right: 10px;
-            padding: 10px;
+
+        /* Top navigation bar */
+        #topBar {
+            position: fixed;
+            top: 0; right: 0;
+            display: flex;
+            align-items: stretch;
+            z-index: 100;
+            background: rgba(15, 15, 20, 0.85);
+            border-bottom-left-radius: 4px;
+        }
+        .nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 18px;
+            color: #999;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 11px;
+            transition: color 0.2s;
+            border-bottom: 2px solid transparent;
+            gap: 3px;
+        }
+        .nav-btn:hover { color: #ddd; }
+        .nav-btn.active {
+            color: #fff;
+            border-bottom-color: #6ac;
+        }
+        .nav-btn .icon { font-size: 18px; }
+
+        /* Side panel */
+        #sidePanel {
+            position: fixed;
+            top: 50px; right: 0;
+            width: 300px;
+            max-height: calc(100vh - 50px);
+            background: rgba(18, 18, 24, 0.95);
+            border-left: 1px solid #333;
+            z-index: 90;
+            overflow-y: auto;
+            display: none;
+        }
+        #sidePanel.open { display: block; }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px 10px;
+        }
+        .panel-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #777;
+            font-size: 20px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 2px 6px;
+        }
+        .close-btn:hover { color: #fff; }
+
+        .panel-tabs {
+            display: flex;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+        }
+        .panel-tab {
+            flex: 1;
+            padding: 10px 8px;
+            text-align: center;
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 2px solid transparent;
+        }
+        .panel-tab:hover { color: #ccc; }
+        .panel-tab.active {
+            color: #fff;
+            border-bottom-color: #6ac;
+        }
+
+        .tab-content { display: none; padding: 16px; }
+        .tab-content.active { display: block; }
+
+        .setting-group { margin-bottom: 18px; }
+        .setting-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #aaa;
+        }
+        .help-btn {
+            background: none;
+            border: 1px solid #555;
+            color: #888;
+            font-size: 10px;
+            padding: 1px 5px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+        .help-btn:hover { color: #fff; border-color: #888; }
+
+        .setting-select {
+            width: 100%;
+            padding: 7px 10px;
+            background: #1a1a22;
+            color: #ccc;
+            border: 1px solid #444;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .setting-select:focus { border-color: #6ac; outline: none; }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #bbb;
+            margin-bottom: 8px;
+        }
+        .checkbox-row input[type="checkbox"] { accent-color: #6ac; }
+
+        /* Bottom playback bar */
+        #playbackBar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            background: rgba(15, 15, 20, 0.9);
+            border-top: 1px solid #2a2a2a;
+            z-index: 100;
+            gap: 8px;
+        }
+        .pb-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 2px 6px;
+        }
+        .pb-btn:hover { color: #fff; }
+
+        #timeSlider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 3px;
+            background: #444;
+            border-radius: 2px;
+            outline: none;
+        }
+        #timeSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 10px; height: 10px;
+            background: #6ac;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #timeDisplay {
+            font-size: 11px;
+            color: #888;
+            min-width: 70px;
+            text-align: right;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .speed-control label {
+            font-size: 11px;
+            color: #777;
+        }
+        .speed-control input[type="range"] {
+            width: 60px;
+            -webkit-appearance: none;
+            height: 2px;
+            background: #444;
+            outline: none;
+        }
+        .speed-control input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 8px; height: 8px;
+            background: #999;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .speed-control span {
+            font-size: 11px;
+            color: #888;
+            min-width: 22px;
+        }
+
+        /* Body labels */
+        .body-label {
+            position: absolute;
+            font-size: 11px;
+            color: #ddd;
+            white-space: nowrap;
+            pointer-events: none;
+            padding: 1px 5px;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(0,0,0,0.55);
+            border-radius: 2px;
+        }
+
+        /* Loading indicator */
+        #loading {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: #888;
+            z-index: 200;
         }
     </style>
 </head>
 <body>
-    <h1>N-Body Gravity Simulator</h1>
-    <div class="controls">
-        <button id="threeBodyBtn">3-Body Problem</button>
-        <button id="plutoCharonBtn">Pluto-Charon</button>
-        <button id="playBtn">Play</button>
-        <button id="pauseBtn">Pause</button>
-        <input type="range" id="speedSlider" min="1" max="100" value="10">
-        <label for="speedSlider">Speed</label>
+    <canvas id="simCanvas"></canvas>
+    <div id="labelsContainer"></div>
+    <div id="loading">Loading simulation...</div>
+
+    <!-- Top navigation -->
+    <div id="topBar">
+        <button class="nav-btn" data-panel="physics">
+            <span class="icon">&#x1F310;</span>Physics
+        </button>
+        <button class="nav-btn active" data-panel="graphics">
+            <span class="icon">&#x270F;</span>Graphics
+        </button>
+        <button class="nav-btn" data-panel="masses">
+            <span class="icon">&#x2696;</span>Masses
+        </button>
+        <button class="nav-btn" data-panel="add">
+            <span class="icon">&#x2699;</span>Add
+        </button>
     </div>
-    <canvas id="simCanvas" width="800" height="600"></canvas>
+
+    <!-- Side panels -->
+    <div id="sidePanel" class="open">
+        <div class="panel-header">
+            <h2 id="panelTitle">Graphics</h2>
+            <button class="close-btn" id="closePanelBtn">&#x2716;</button>
+        </div>
+
+        <div class="panel-tabs">
+            <button class="panel-tab active" data-tab="camera">Camera</button>
+            <button class="panel-tab" data-tab="labels">Labels</button>
+            <button class="panel-tab" data-tab="objects">Objects</button>
+        </div>
+
+        <!-- Camera tab -->
+        <div id="cameraTab" class="tab-content active">
+            <div class="setting-group">
+                <div class="setting-label">
+                    <span>Rotating Reference Frame</span>
+                    <button class="help-btn">[?]</button>
+                </div>
+                <select class="setting-select" id="referenceFrame">
+                    <option value="barycenter">Barycenter</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <div class="setting-label">
+                    <span>Camera Position</span>
+                    <button class="help-btn">[?]</button>
+                </div>
+                <select class="setting-select" id="cameraPosition">
+                    <option value="auto">Auto</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <div class="setting-label">
+                    <span>Camera Focus</span>
+                    <button class="help-btn">[?]</button>
+                </div>
+                <select class="setting-select" id="cameraFocus">
+                    <option value="barycenter">Barycenter</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Labels tab -->
+        <div id="labelsTab" class="tab-content">
+            <div class="setting-group">
+                <label class="checkbox-row">
+                    <input type="checkbox" id="showLabelsCheck" checked>
+                    Show Body Names
+                </label>
+            </div>
+        </div>
+
+        <!-- Objects tab -->
+        <div id="objectsTab" class="tab-content">
+            <div class="setting-group">
+                <label class="checkbox-row">
+                    <input type="checkbox" id="showTrailsCheck" checked>
+                    Show Orbital Trails
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="showFullTrailsCheck" checked>
+                    Show Full Orbits
+                </label>
+            </div>
+            <div id="objectsList"></div>
+        </div>
+    </div>
+
+    <!-- Bottom playback bar -->
+    <div id="playbackBar">
+        <button class="pb-btn" id="playPauseBtn">&#9654;</button>
+        <button class="pb-btn" id="resetBtn">&#x21BA;</button>
+        <input type="range" id="timeSlider" min="0" max="100" value="0">
+        <span id="timeDisplay">0.0 days</span>
+        <div class="speed-control">
+            <label>Speed:</label>
+            <input type="range" id="speedSlider" min="1" max="30" value="5">
+            <span id="speedValue">5x</span>
+        </div>
+    </div>
 
     <script>
         const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
-        const playBtn = document.getElementById('playBtn');
-        const pauseBtn = document.getElementById('pauseBtn');
-        const speedSlider = document.getElementById('speedSlider');
-        const threeBodyBtn = document.getElementById('threeBodyBtn');
-        const plutoCharonBtn = document.getElementById('plutoCharonBtn');
+        const labelsContainer = document.getElementById('labelsContainer');
+        const loadingEl = document.getElementById('loading');
 
+        // State
         let history = [];
         let currentStep = 0;
         let isPlaying = false;
-        let speed = 10;
+        let playSpeed = 5;
+        let showTrails = true;
+        let showFullTrails = true;
+        let showLabels = true;
+        let starfield = [];
+        let labelElements = {};
+        let starCanvas = null; // offscreen starfield
 
-        function fetchSimulation(scenario) {
-            fetch(`http://localhost:8000/simulate/${scenario}`)
-                .then(response => response.json())
-                .then(data => {
-                    history = data.history;
-                    currentStep = 0;
-                    draw();
-                })
-                .catch(error => console.error('Error fetching simulation:', error));
+        // Sun display marker (not in physics simulation)
+        const SUN_MARKER = { x: 1.1e8, y: 8.5e7, name: 'Sun' };
+
+        // ---- Canvas setup ----
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            generateStarfield();
+            if (history.length > 0) draw();
         }
+        window.addEventListener('resize', resizeCanvas);
 
-        function getBounds() {
-            if (history.length === 0) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-            history.forEach(state => {
-                state.bodies.forEach(body => {
-                    const [x, y] = body.position;
-                    minX = Math.min(minX, x);
-                    maxX = Math.max(maxX, x);
-                    minY = Math.min(minY, y);
-                    maxY = Math.max(maxY, y);
-                });
-            });
-            return { minX, maxX, minY, maxY };
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (history.length === 0) return;
-
-            const state = history[currentStep];
-            const bounds = getBounds();
-            const scaleX = canvas.width / (bounds.maxX - bounds.minX || 1);
-            const scaleY = canvas.height / (bounds.maxY - bounds.minY || 1);
-            const scale = Math.min(scaleX, scaleY) * 0.8; // Leave some margin
-
-            state.bodies.forEach(body => {
-                const [x, y] = body.position;
-                const cx = (x - bounds.minX) * scale + 50; // Offset for margin
-                const cy = (y - bounds.minY) * scale + 50;
-                ctx.beginPath();
-                ctx.arc(cx, cy, 5, 0, 2 * Math.PI);
-                ctx.fillStyle = 'white';
-                ctx.fill();
-                ctx.fillText(body.name, cx + 10, cy);
-            });
-        }
-
-        function animate() {
-            if (isPlaying && currentStep < history.length - 1) {
-                currentStep++;
-                draw();
+        // ---- Starfield (offscreen cached) ----
+        function generateStarfield() {
+            starCanvas = document.createElement('canvas');
+            starCanvas.width = canvas.width;
+            starCanvas.height = canvas.height;
+            const sctx = starCanvas.getContext('2d');
+            const count = Math.floor((canvas.width * canvas.height) / 2500);
+            for (let i = 0; i < count; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const r = Math.random() * 1.3 + 0.2;
+                const a = Math.random() * 0.55 + 0.15;
+                sctx.fillStyle = `rgba(255,255,255,${a})`;
+                sctx.beginPath();
+                sctx.arc(x, y, r, 0, Math.PI * 2);
+                sctx.fill();
             }
         }
 
-        setInterval(animate, 1000 / speed);
+        // ---- Data fetching ----
+        function fetchSimulation() {
+            const scenario = new URLSearchParams(window.location.search).get('scenario') || 'pluto_system';
+            loadingEl.style.display = '';
+            fetch(`http://localhost:8000/simulate/${scenario}?steps=4000`)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
+                .then(data => {
+                    loadingEl.style.display = 'none';
+                    if (data.error) { console.error(data.error); return; }
+                    history = data.history;
+                    currentStep = 0;
+                    clearLabels();
+                    populateDropdowns();
+                    document.getElementById('timeSlider').max = history.length - 1;
+                    draw();
+                })
+                .catch(err => {
+                    loadingEl.textContent = 'Error loading simulation';
+                    console.error('Fetch error:', err);
+                });
+        }
 
-        playBtn.addEventListener('click', () => {
-            isPlaying = true;
+        function clearLabels() {
+            labelsContainer.innerHTML = '';
+            labelElements = {};
+        }
+
+        function populateDropdowns() {
+            if (history.length === 0) return;
+            const names = history[0].bodies.map(b => b.name);
+            ['referenceFrame', 'cameraFocus'].forEach(id => {
+                const sel = document.getElementById(id);
+                const cur = sel.value;
+                sel.innerHTML = '<option value="barycenter">Barycenter</option>';
+                names.forEach(n => {
+                    const opt = document.createElement('option');
+                    opt.value = n; opt.textContent = n;
+                    sel.appendChild(opt);
+                });
+                // Add Sun marker option
+                const sunOpt = document.createElement('option');
+                sunOpt.value = 'Sun'; sunOpt.textContent = 'Sun';
+                sel.appendChild(sunOpt);
+                sel.value = cur || 'barycenter';
+            });
+            const posSel = document.getElementById('cameraPosition');
+            posSel.innerHTML = '<option value="auto">Auto</option>';
+            names.forEach(n => {
+                const opt = document.createElement('option');
+                opt.value = n; opt.textContent = n;
+                posSel.appendChild(opt);
+            });
+        }
+
+        // ---- View transforms ----
+        function getBarycenter(state) {
+            let tm = 0, cx = 0, cy = 0;
+            for (const b of state.bodies) {
+                tm += b.mass; cx += b.position[0] * b.mass; cy += b.position[1] * b.mass;
+            }
+            return [cx / tm, cy / tm];
+        }
+
+        function getFocusPosition(state) {
+            const focus = document.getElementById('cameraFocus').value;
+            if (focus === 'barycenter') return getBarycenter(state);
+            if (focus === 'Sun') return [SUN_MARKER.x, SUN_MARKER.y];
+            const body = state.bodies.find(b => b.name === focus);
+            return body ? [...body.position] : getBarycenter(state);
+        }
+
+        function getAutoScale(state, fp) {
+            let maxDist = 0;
+            for (const b of state.bodies) {
+                const dx = b.position[0] - fp[0], dy = b.position[1] - fp[1];
+                maxDist = Math.max(maxDist, Math.sqrt(dx * dx + dy * dy));
+            }
+            // Include Sun marker
+            const sdx = SUN_MARKER.x - fp[0], sdy = SUN_MARKER.y - fp[1];
+            maxDist = Math.max(maxDist, Math.sqrt(sdx * sdx + sdy * sdy));
+            const minDim = Math.min(canvas.width, canvas.height);
+            return (minDim * 0.42) / (maxDist || 1);
+        }
+
+        function worldToScreen(wx, wy, fp, scale) {
+            return [
+                (wx - fp[0]) * scale + canvas.width / 2,
+                (wy - fp[1]) * scale + canvas.height / 2
+            ];
+        }
+
+        // ---- Drawing ----
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Starfield
+            if (starCanvas) ctx.drawImage(starCanvas, 0, 0);
+
+            if (history.length === 0) return;
+
+            const state = history[currentStep];
+            const fp = getFocusPosition(state);
+            const scale = getAutoScale(state, fp);
+
+            // Draw trails
+            if (showTrails) {
+                const trailEnd = showFullTrails ? history.length - 1 : currentStep;
+                ctx.lineWidth = 1;
+                ctx.globalAlpha = 0.45;
+                for (let bi = 0; bi < state.bodies.length; bi++) {
+                    ctx.strokeStyle = 'rgba(180,185,200,0.6)';
+                    ctx.beginPath();
+                    let started = false;
+                    // Draw every Nth point for performance
+                    const step = trailEnd > 2000 ? 2 : 1;
+                    for (let s = 0; s <= trailEnd; s += step) {
+                        const pos = history[s].bodies[bi].position;
+                        const [sx, sy] = worldToScreen(pos[0], pos[1], fp, scale);
+                        if (!started) { ctx.moveTo(sx, sy); started = true; }
+                        else ctx.lineTo(sx, sy);
+                    }
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Draw bodies
+            state.bodies.forEach((body, i) => {
+                const [sx, sy] = worldToScreen(body.position[0], body.position[1], fp, scale);
+                drawBody(sx, sy, 5);
+                if (showLabels) setLabel(i, body.name, sx + 12, sy - 4);
+            });
+
+            // Draw Sun marker
+            const [sunSx, sunSy] = worldToScreen(SUN_MARKER.x, SUN_MARKER.y, fp, scale);
+            drawBody(sunSx, sunSy, 5);
+            if (showLabels) setLabel('sun', SUN_MARKER.name, sunSx + 12, sunSy - 4);
+
+            // Hide labels when not visible
+            if (!showLabels) {
+                Object.values(labelElements).forEach(el => el.style.display = 'none');
+            }
+
+            // Time display
+            const days = (state.time / 86400).toFixed(1);
+            document.getElementById('timeDisplay').textContent = days + ' days';
+            document.getElementById('timeSlider').value = currentStep;
+        }
+
+        function drawBody(sx, sy, radius) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.fill();
+        }
+
+        function setLabel(key, text, x, y) {
+            if (!labelElements[key]) {
+                const el = document.createElement('div');
+                el.className = 'body-label';
+                el.textContent = text;
+                labelsContainer.appendChild(el);
+                labelElements[key] = el;
+            }
+            const el = labelElements[key];
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.style.display = '';
+        }
+
+        // ---- Animation loop ----
+        let lastFrame = 0;
+        function animate(ts) {
+            if (isPlaying && history.length > 0 && currentStep < history.length - 1) {
+                currentStep = Math.min(currentStep + playSpeed, history.length - 1);
+                draw();
+                if (currentStep >= history.length - 1) {
+                    isPlaying = false;
+                    document.getElementById('playPauseBtn').innerHTML = '&#9654;';
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // ---- UI event handlers ----
+        document.getElementById('playPauseBtn').addEventListener('click', () => {
+            if (currentStep >= history.length - 1) currentStep = 0;
+            isPlaying = !isPlaying;
+            document.getElementById('playPauseBtn').innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
         });
 
-        pauseBtn.addEventListener('click', () => {
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            currentStep = 0;
             isPlaying = false;
+            document.getElementById('playPauseBtn').innerHTML = '&#9654;';
+            draw();
         });
 
-        speedSlider.addEventListener('input', (e) => {
-            speed = e.target.value;
+        document.getElementById('timeSlider').addEventListener('input', e => {
+            currentStep = parseInt(e.target.value);
+            draw();
         });
 
-        threeBodyBtn.addEventListener('click', () => {
-            fetchSimulation('three_body');
+        document.getElementById('speedSlider').addEventListener('input', e => {
+            playSpeed = parseInt(e.target.value);
+            document.getElementById('speedValue').textContent = playSpeed + 'x';
         });
 
-        plutoCharonBtn.addEventListener('click', () => {
-            fetchSimulation('pluto_charon');
+        document.getElementById('cameraFocus').addEventListener('change', () => draw());
+        document.getElementById('referenceFrame').addEventListener('change', () => draw());
+
+        document.getElementById('showLabelsCheck').addEventListener('change', e => {
+            showLabels = e.target.checked;
+            draw();
+        });
+        document.getElementById('showTrailsCheck').addEventListener('change', e => {
+            showTrails = e.target.checked;
+            draw();
+        });
+        document.getElementById('showFullTrailsCheck').addEventListener('change', e => {
+            showFullTrails = e.target.checked;
+            draw();
         });
 
-        // Load default or from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const initialScenario = urlParams.get('scenario') || 'three_body';
-        fetchSimulation(initialScenario);
+        // ---- Panel / tab handling ----
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('panelTitle').textContent = btn.textContent.trim();
+                document.getElementById('sidePanel').classList.add('open');
+            });
+        });
+
+        document.getElementById('closePanelBtn').addEventListener('click', () => {
+            document.getElementById('sidePanel').classList.remove('open');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        });
+
+        document.querySelectorAll('.panel-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+            });
+        });
+
+        // ---- Init ----
+        resizeCanvas();
+        fetchSimulation();
+        requestAnimationFrame(animate);
     </script>
 </body>
 </html>

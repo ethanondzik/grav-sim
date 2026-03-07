@@ -8,35 +8,44 @@
         body {
             font-family: Arial, sans-serif;
             margin: 40px;
-            background-color: #f0f0f0;
-            color: #333;
+            background-color: #121212;
+            color: #e0e0e0;
         }
         h1 {
-            color: #2c3e50;
+            color: #ffffff;
         }
         .dashboard {
             max-width: 800px;
             margin: 0 auto;
-            background: white;
+            background: #1e1e1e;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         .scenario {
             margin: 20px 0;
             padding: 15px;
-            border: 1px solid #ddd;
+            border: 1px solid #333;
             border-radius: 5px;
+            background: #2a2a2a;
         }
         .scenario h2 {
             margin-top: 0;
+            color: #ffffff;
+        }
+        .scenario p {
+            color: #cccccc;
         }
         a {
-            color: #3498db;
+            color: #4da6ff;
             text-decoration: none;
         }
         a:hover {
             text-decoration: underline;
+        }
+        .coming-soon {
+            color: #888;
+            font-style: italic;
         }
     </style>
 </head>
@@ -55,6 +64,30 @@
             <h2>Pluto-Charon System</h2>
             <p>Explore the binary orbit of Pluto and its moon Charon using real astronomical data.</p>
             <a href="/frontend/index.html?scenario=pluto_charon">Launch Pluto-Charon Simulation</a>
+        </div>
+
+        <div class="scenario">
+            <h2>Pluto System (Full)</h2>
+            <p>Explore the complete Pluto system with all five moons: Charon, Nix, Styx, Kerberos, and Hydra.</p>
+            <a href="/frontend/index.html?scenario=pluto_system">Launch Pluto System Simulation</a>
+        </div>
+
+        <div class="scenario">
+            <h2>Jupiter and Its Moons</h2>
+            <p>Simulate the complex gravitational interactions in the Jovian system with multiple moons.</p>
+            <span class="coming-soon">Coming Soon</span>
+        </div>
+
+        <div class="scenario">
+            <h2>Star Formation</h2>
+            <p>Watch molecular clouds collapse under gravity to form protostars and planetary systems.</p>
+            <span class="coming-soon">Coming Soon</span>
+        </div>
+
+        <div class="scenario">
+            <h2>Solar System</h2>
+            <p>Experience the full solar system with all planets and major asteroids in their orbits.</p>
+            <span class="coming-soon">Coming Soon</span>
         </div>
 
         <p><em>Built with FastAPI and real physics calculations.</em></p>
