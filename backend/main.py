@@ -1,25 +1,23 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from sim import simulate, create_three_body_problem, create_pluto_charon, create_pluto_system
+from sim import simulate, create_three_body_problem, create_pluto_system, G_SI
+from typing import Optional
 import json
 
 app = FastAPI()
 
-# Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  #specify the frontend URL in prod
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Serve static files from frontend directory
 app.mount("/frontend", StaticFiles(directory="../frontend"), name="frontend")
 
-#dashboard
 @app.get("/", response_class=HTMLResponse)
 def get_dashboard():
     with open("../frontend/dashboard.html", "r") as f:
@@ -27,29 +25,46 @@ def get_dashboard():
     return HTMLResponse(content=html_content)
 
 @app.get("/simulate/{scenario}")
-def get_simulation(scenario: str, dt: float = None, steps: int = 500):
+def get_simulation(
+    scenario: str,
+    dt: Optional[float] = None,
+    steps: int = 500,
+    pos: Optional[str] = None,
+    vel: Optional[str] = None,
+    mass: Optional[str] = None,
+):
     try:
         if scenario == "three_body":
-            bodies = create_three_body_problem()
+            positions = _parse_vecs(pos, 3) if pos else None
+            velocities = _parse_vecs(vel, 3) if vel else None
+            masses = _parse_floats(mass, 3) if mass else None
+            bodies = create_three_body_problem(positions, velocities, masses)
             if dt is None:
-                dt = 0.01
-        elif scenario == "pluto_charon":
-            bodies = create_pluto_charon()
-            if dt is None:
-                dt = 0.1
+                dt = 0.0005
+            if steps == 500:
+                steps = 120000
+            history = simulate(bodies, dt, steps, G=1.0, softening=0.05, record_every=20)
         elif scenario == "pluto_system":
             bodies = create_pluto_system()
             if dt is None:
                 dt = 1000
             if steps == 500:
                 steps = 4000
+            history = simulate(bodies, dt, steps)
         else:
             return {"error": "Unknown scenario"}
 
-        history = simulate(bodies, dt, steps)
         return {"history": history, "steps": len(history), "scenario": scenario}
     except Exception as e:
         return {"error": str(e), "scenario": scenario}
+
+def _parse_vecs(s, n):
+    vals = [float(x) for x in s.split(',')]
+    return [vals[i*2:(i+1)*2] for i in range(n)]
+
+def _parse_floats(s, n):
+    vals = [float(x) for x in s.split(',')]
+    return vals[:n]
 
 if __name__ == "__main__":
     import uvicorn

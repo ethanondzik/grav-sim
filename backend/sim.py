@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-G = 6.67430e-11  # Gravitational constant in m^3 kg^-1 s^-2
+G_SI = 6.67430e-11  # Gravitational constant in m^3 kg^-1 s^-2
 
 class Body:
     def __init__(self, mass, position, velocity, name=""):
@@ -10,44 +10,46 @@ class Body:
         self.velocity = np.array(velocity, dtype=float)
         self.name = name
 
-def gravitational_acceleration(body, bodies):
-    """Calculate the total gravitational acceleration on a body due to other bodies."""
+def gravitational_acceleration(body, bodies, G, softening=0.0):
     acceleration = np.zeros(2)
     for other in bodies:
         if other is not body:
             r_vector = other.position - body.position
-            r = np.linalg.norm(r_vector)
-            if r > 0:
-                acceleration += G * other.mass / r**3 * r_vector
+            r2 = np.dot(r_vector, r_vector) + softening * softening
+            r = np.sqrt(r2)
+            if r > 1e-10:
+                acceleration += G * other.mass / (r2 * r) * r_vector
     return acceleration
 
-def simulate(bodies, dt, steps):
-    """Simulate using Velocity Verlet integrator for better energy conservation."""
+def simulate(bodies, dt, steps, G=None, softening=0.0, record_every=1):
+    """Simulate using Velocity Verlet integrator.
+    softening: Plummer softening length to prevent close-encounter blowups.
+    record_every: save state every N steps to reduce output size."""
+    if G is None:
+        G = G_SI
     history = []
-    accelerations = [gravitational_acceleration(body, bodies) for body in bodies]
+    accelerations = [gravitational_acceleration(body, bodies, G, softening) for body in bodies]
 
     for step in range(steps):
-        state = {
-            "time": step * dt,
-            "bodies": [
-                {
-                    "name": body.name,
-                    "position": body.position.tolist(),
-                    "velocity": body.velocity.tolist(),
-                    "mass": body.mass
-                } for body in bodies
-            ]
-        }
-        history.append(state)
+        if step % record_every == 0:
+            state = {
+                "time": step * dt,
+                "bodies": [
+                    {
+                        "name": body.name,
+                        "position": body.position.tolist(),
+                        "velocity": body.velocity.tolist(),
+                        "mass": body.mass
+                    } for body in bodies
+                ]
+            }
+            history.append(state)
 
-        # Velocity Verlet: update positions
         for i, body in enumerate(bodies):
             body.position += body.velocity * dt + 0.5 * accelerations[i] * dt**2
 
-        # Compute new accelerations
-        new_accelerations = [gravitational_acceleration(body, bodies) for body in bodies]
+        new_accelerations = [gravitational_acceleration(body, bodies, G, softening) for body in bodies]
 
-        # Update velocities
         for i, body in enumerate(bodies):
             body.velocity += 0.5 * (accelerations[i] + new_accelerations[i]) * dt
 
@@ -55,29 +57,42 @@ def simulate(bodies, dt, steps):
 
     return history
 
-def create_three_body_problem():
-    bodies = [
-        Body(1.0, [0.9700436, -0.24308753], [0.466203685, 0.43236573], "Body1"),
-        Body(1.0, [-0.9700436, 0.24308753], [0.466203685, 0.43236573], "Body2"),
-        Body(1.0, [0.0, 0.0], [-0.93240737, -0.86473146], "Body3")
-    ]
-    return bodies
+def create_three_body_problem(positions=None, velocities=None, masses=None):
+    """Create a chaotic three-body problem.
+    Default: three bodies at vertices of a triangle, starting near rest.
+    User can override positions, velocities, masses."""
+    n = 3
+    if masses is None:
+        masses = [3.0, 4.0, 5.0]
+    if positions is None:
+        # Pythagorean three-body problem: vertices of a 3-4-5 right triangle
+        positions = [[1.0, 3.0], [-2.0, -1.0], [1.0, -1.0]]
+    if velocities is None:
+        # Start from rest — gravity alone drives the chaos
+        velocities = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
 
-def create_pluto_charon():
-    pluto_mass = 1.0e23
-    charon_mass = 1.2e22
-    distance = 20000.0
-    total_mass = pluto_mass + charon_mass
-    v_orbital = np.sqrt(G * total_mass / distance)
+    # Center on COM and zero COM velocity
+    total_mass = sum(masses)
+    com_pos = np.zeros(2)
+    com_vel = np.zeros(2)
+    for i in range(n):
+        com_pos += masses[i] * np.array(positions[i])
+        com_vel += masses[i] * np.array(velocities[i])
+    com_pos /= total_mass
+    com_vel /= total_mass
+    positions = [list(np.array(positions[i]) - com_pos) for i in range(n)]
+    velocities = [list(np.array(velocities[i]) - com_vel) for i in range(n)]
+
     bodies = [
-        Body(pluto_mass, [0, 0], [0, 0], "Pluto"),
-        Body(charon_mass, [distance, 0], [0, v_orbital], "Charon")
+        Body(masses[i], positions[i], velocities[i], f"Body {i+1}")
+        for i in range(n)
     ]
     return bodies
 
 def create_pluto_system():
     """Full Pluto system: Pluto + Charon + Nix + Styx + Kerberos + Hydra.
     All bodies in the barycenter frame with circular orbit velocities."""
+    G = G_SI
     M_pluto = 1.303e22
     M_charon = 1.586e21
     M_nix = 4.5e16
