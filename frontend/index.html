@@ -379,6 +379,7 @@
         let starfield = [];
         let labelElements = {};
         let starCanvas = null; // offscreen starfield
+        let visibleBodies = new Set(); // body names that are visible
 
         // Sun display marker (not in physics simulation)
         const SUN_MARKER = { x: 1.1e8, y: 8.5e7, name: 'Sun' };
@@ -426,7 +427,9 @@
                     history = data.history;
                     currentStep = 0;
                     clearLabels();
+                    initVisibility();
                     populateDropdowns();
+                    populateObjectsList();
                     document.getElementById('timeSlider').max = history.length - 1;
                     draw();
                 })
@@ -441,6 +444,12 @@
             labelElements = {};
         }
 
+        function initVisibility() {
+            if (history.length === 0) return;
+            visibleBodies = new Set(history[0].bodies.map(b => b.name));
+            visibleBodies.add('Sun');
+        }
+
         function populateDropdowns() {
             if (history.length === 0) return;
             const names = history[0].bodies.map(b => b.name);
@@ -453,7 +462,6 @@
                     opt.value = n; opt.textContent = n;
                     sel.appendChild(opt);
                 });
-                // Add Sun marker option
                 const sunOpt = document.createElement('option');
                 sunOpt.value = 'Sun'; sunOpt.textContent = 'Sun';
                 sel.appendChild(sunOpt);
@@ -465,6 +473,29 @@
                 const opt = document.createElement('option');
                 opt.value = n; opt.textContent = n;
                 posSel.appendChild(opt);
+            });
+        }
+
+        function populateObjectsList() {
+            const list = document.getElementById('objectsList');
+            list.innerHTML = '';
+            if (history.length === 0) return;
+            const allNames = history[0].bodies.map(b => b.name).concat(['Sun']);
+            allNames.forEach(name => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-row';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = visibleBodies.has(name);
+                cb.addEventListener('change', () => {
+                    if (cb.checked) visibleBodies.add(name);
+                    else visibleBodies.delete(name);
+                    clearLabels();
+                    draw();
+                });
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(name));
+                list.appendChild(label);
             });
         }
 
@@ -488,12 +519,14 @@
         function getAutoScale(state, fp) {
             let maxDist = 0;
             for (const b of state.bodies) {
+                if (!visibleBodies.has(b.name)) continue;
                 const dx = b.position[0] - fp[0], dy = b.position[1] - fp[1];
                 maxDist = Math.max(maxDist, Math.sqrt(dx * dx + dy * dy));
             }
-            // Include Sun marker
-            const sdx = SUN_MARKER.x - fp[0], sdy = SUN_MARKER.y - fp[1];
-            maxDist = Math.max(maxDist, Math.sqrt(sdx * sdx + sdy * sdy));
+            if (visibleBodies.has('Sun')) {
+                const sdx = SUN_MARKER.x - fp[0], sdy = SUN_MARKER.y - fp[1];
+                maxDist = Math.max(maxDist, Math.sqrt(sdx * sdx + sdy * sdy));
+            }
             const minDim = Math.min(canvas.width, canvas.height);
             return (minDim * 0.42) / (maxDist || 1);
         }
@@ -524,10 +557,10 @@
                 ctx.lineWidth = 1;
                 ctx.globalAlpha = 0.45;
                 for (let bi = 0; bi < state.bodies.length; bi++) {
+                    if (!visibleBodies.has(state.bodies[bi].name)) continue;
                     ctx.strokeStyle = 'rgba(180,185,200,0.6)';
                     ctx.beginPath();
                     let started = false;
-                    // Draw every Nth point for performance
                     const step = trailEnd > 2000 ? 2 : 1;
                     for (let s = 0; s <= trailEnd; s += step) {
                         const pos = history[s].bodies[bi].position;
@@ -542,15 +575,18 @@
 
             // Draw bodies
             state.bodies.forEach((body, i) => {
+                if (!visibleBodies.has(body.name)) return;
                 const [sx, sy] = worldToScreen(body.position[0], body.position[1], fp, scale);
                 drawBody(sx, sy, 5);
                 if (showLabels) setLabel(i, body.name, sx + 12, sy - 4);
             });
 
             // Draw Sun marker
-            const [sunSx, sunSy] = worldToScreen(SUN_MARKER.x, SUN_MARKER.y, fp, scale);
-            drawBody(sunSx, sunSy, 5);
-            if (showLabels) setLabel('sun', SUN_MARKER.name, sunSx + 12, sunSy - 4);
+            if (visibleBodies.has('Sun')) {
+                const [sunSx, sunSy] = worldToScreen(SUN_MARKER.x, SUN_MARKER.y, fp, scale);
+                drawBody(sunSx, sunSy, 5);
+                if (showLabels) setLabel('sun', SUN_MARKER.name, sunSx + 12, sunSy - 4);
+            }
 
             // Hide labels when not visible
             if (!showLabels) {
